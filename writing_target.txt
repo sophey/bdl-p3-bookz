@@ -1,0 +1,27 @@
+Writing Target: Wikidata Linking UI
+
+1. (4) Q. Describe what is going on in these URLs. What query parameters are used?
+These URLs are querying wikidata and getting JSON data with the results of the queries. 
+The first link has the action “wbsearchentities” so it is searching for entities using labels and aliases. It is searching in English for the text “dickens”. 
+The second link has the action “wbgetentities” so it is getting data for Wikibase entities using the ID “Q5686”. 
+
+2. (4) R. Write a small amount of pseudocode to describe how we would collect an image URL (if available) from the first search result for an author's last name. It's okay to use a function "GetResultsFromURL()" in your pseudo-code. It's okay to not know what every field returned means. What fields do you need? (e.g. response.claims.P18.mainsnak.value is probably sufficient "code" to extract the image JPG, and imagine it's null if not present) Focus on the high level.
+
+JSONStr = readURL(“https://www.wikidata.org/w/api.php?action=wbsearchentities&language=en&search=dickens”);
+root = JSONStr.root
+result1 = root.search[0]
+title = result1.title
+JSONStr2 = readURL(“https://www.wikidata.org/w/api.php?action=wbgetentities&ids=“ + title)
+root2 = JSONStr.root
+for each property P in root2.”entities”.title.”claims”
+	if P.”mainsnak”.”datatype” is “commonsMedia
+		return P.”datavalue”
+
+3. (4) S. How many requests does your psuedocode use? Imagine Wikidata lets you do 1000 per day. What does that mean for your code? How many times could you run your algorithm per day without being blocked? -- this was changed since they hide the value on their website.
+
+The pseudocode uses 2 requests, one to search for the author, and one extracting data from the entity search. This means the code can only run 500 times without being blocked.
+
+
+4. (4) T. Let's assume we decide the search results are pretty bad. How would you design a website that would let librarians pick the correct wikidata entries to link to a GutenbergBook?
+
+I’d design a website that would let librarians pick the correct wikidata entries by querying wikidata using the action wbgetentities and displaying the basic information in a human readable way from that query. I’d make that selectable so once they have chosen one, we could store that information and query wikidata like in the second link so we can get additional data like images.

@@ -1,0 +1,9 @@
+*.iml
+.idea
+.project
+.classpath
+target
+*.class
+*.jar
+catalog.jsonl.gz
+/bin/
