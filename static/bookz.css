@@ -33,8 +33,9 @@ a.none {
     color: #000;
 }
 
-a.flag {
+#right {
     float: right;
+    text-align:right;
 }
 
 div.book {

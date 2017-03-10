@@ -9,10 +9,10 @@ import org.eclipse.jetty.server.handler.ResourceHandler;
 import org.eclipse.jetty.util.resource.Resource;
 
 import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.io.PrintWriter;
 import java.util.List;
 import java.util.Map;
@@ -114,7 +114,8 @@ public class BookzServer extends AbstractHandler {
 
         if (this.model.getBooksStartingWith(firstChar) != null) {
           view.showBookCollection(this.model.getBooksStartingWith(firstChar,
-              pageNum), pageNum, model.getNumPagesStartingWithChar(firstChar),
+              pageNum), this.model, pageNum, model
+                  .getNumPagesStartingWithChar(firstChar),
               "/title/" + Character.toString(firstChar), resp);
         } else {
           redirectPageForNoSearchResults(resp);
@@ -129,7 +130,7 @@ public class BookzServer extends AbstractHandler {
             .getBooksAuthorStartingWith(firstChar);
         if (booksAuthor != null) {
           view.showBookCollection(this.model.getPage(booksAuthor, pageNum),
-              pageNum, model.getNumPages(booksAuthor),
+              this.model, pageNum, model.getNumPages(booksAuthor),
               "/author/" + Character.toString(firstChar), resp);
         }
       }
@@ -158,7 +159,7 @@ public class BookzServer extends AbstractHandler {
         }
         Author author = new Author(firstName, lastName, 0, 0);
         List<GutenbergBook> books = this.model.getBooksByAuthor(author);
-        view.showBookCollection(this.model.getPage(books, pageNum),
+        view.showBookCollection(this.model.getPage(books, pageNum), this.model,
             pageNum, model.getNumPages(books),
             "/authorPage/" + authorPageCmd, resp);
       }
@@ -166,7 +167,7 @@ public class BookzServer extends AbstractHandler {
       // Check for startsWith and substring
       String bookId = Util.getAfterIfStartsWith("/book/", path);
       if (bookId != null) {
-        view.showBookPage(this.model.getBook(bookId), resp);
+        view.showBookPage(model, this.model.getBook(bookId), resp);
       }
 
       String flagId = Util.getAfterIfStartsWith("/flag/", path);
@@ -174,24 +175,134 @@ public class BookzServer extends AbstractHandler {
         view.showFlagPage(this.model.getBook("etext" + flagId), resp);
       }
 
+      String likeId = Util.getAfterIfStartsWith("/like/", path);
+      if (likeId != null) {
+        if (req.getCookies() != null) {
+          for (Cookie cookie : req.getCookies()) {
+            if (cookie.getName().equals("user")) {
+              view.showLikePage(this.model.getBook("etext" + likeId), resp,
+                  model, cookie.getValue());
+              continue;
+            }
+          }
+        }
+        // if we've reached here, send to login page
+        redirectToLogin(req, resp);
+      }
+
       String reviewPage = Util.getAfterIfStartsWith("/flagged", path);
       if (reviewPage != null) {
         view.showReviewPage(model.getFlagged(), resp);
       }
 
+      String userLikeId = Util.getAfterIfStartsWith("/userLikes/", path);
+      if (userLikeId != null) {
+        int indSlash = userLikeId.indexOf("/");
+        int pageNum = Integer.parseInt(userLikeId.substring(indSlash + 1));
+        String user = userLikeId.substring(0, indSlash);
+        List<GutenbergBook> booksLiked = this.model.getUserLiked(user);
+        if (booksLiked != null) {
+          view.showBookCollection(this.model.getPage(booksLiked, pageNum),
+              this.model, pageNum, model.getNumPages(booksLiked),
+              "/userLikes/" + user, resp);
+        }
+      }
+
+      if ("/login".equals(path)) {
+        view.showLoginPage(resp);
+      }
+
+      if ("/signOut".equals(path)) {
+        redirectToLogin(req, resp);
+      }
+
       // Front page!
       if ("/front".equals(path) || "/".equals(path)) {
-        view.showFrontPage(this.model, resp);
+        boolean isLoggedIn = false;
+        if (req.getCookies() != null) {
+          for (Cookie cookie : req.getCookies()) {
+            if (cookie.getName().equals("user")) {
+              isLoggedIn = true;
+              continue;
+            }
+          }
+        }
+        view.showFrontPage(this.model, resp, isLoggedIn);
         return;
       }
+
     } else if ("POST".equals(method)) {
       if (path.contains("/submitFlag")) {
         handleForm(req, resp);
         return;
+      } else if (path.contains("/submitLike")) {
+        handleLike(req, resp);
+        return;
+      } else if (path.contains("/submitLogin")) {
+        handleLogin(req, resp);
       }
     }
   }
 
+  private void handleLogin(HttpServletRequest req,
+                           HttpServletResponse resp)
+      throws IOException {
+    Map<String, String[]> parameterMap = req.getParameterMap();
+
+    // if for some reason, we have multiple "message" fields in our form,
+    // just put a space between them, see Util.join.
+    // Note that message comes from the name="message" parameter in our
+    // <input> elements on our form.
+    String user = Util.join(parameterMap.get("user"));
+
+    if (user != null) {
+      // Good, got new message from form.
+      resp.setStatus(HttpServletResponse.SC_ACCEPTED);
+
+      resp.addCookie(new Cookie("user", user));
+
+      submitPage(resp);
+
+      return;
+    }
+
+    // user submitted something weird.
+    resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad user.");
+  }
+
+  /**
+   * When a user presses the "like" button, the likes will be calculated
+   *
+   * @param req  -- we'll grab the form parameters from here.
+   * @param resp -- where to write their "success" page.
+   * @throws IOException again, real life happens.
+   */
+  private void handleLike(HttpServletRequest req,
+                          HttpServletResponse resp)
+      throws IOException {
+    Map<String, String[]> parameterMap = req.getParameterMap();
+
+    // if for some reason, we have multiple "message" fields in our form,
+    // just put a space between them, see Util.join.
+    // Note that message comes from the name="message" parameter in our
+    // <input> elements on our form.
+    String user = Util.join(parameterMap.get("user"));
+    String id = Util.join(parameterMap.get("id"));
+
+    if (user != null && id != null) {
+      // Good, got new message from form.
+      resp.setStatus(HttpServletResponse.SC_ACCEPTED);
+
+      model.addLike(id, user);
+
+      submitPage(resp);
+
+      return;
+    }
+
+    // user submitted something weird.
+    resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Bad like.");
+  }
 
   /**
    * When a user submits (enter key) or pressed the "Submit" button, we'll
@@ -231,14 +342,14 @@ public class BookzServer extends AbstractHandler {
   private void submitPage(HttpServletResponse resp) {
     // Respond!
     try (PrintWriter html = resp.getWriter()) {
-      view.printPageStart(html, "Bookz: Flag Submitted!");
+      view.printPageStart(html, "Bookz: Thanks for your submission!", "/front");
       // Print actual redirect directive:
       html.println("<meta http-equiv=\"refresh\" content=\"3; url=front \">");
 
       // Thank you, link.
       html.println("<div class=\"body\">");
       html.println("<div class=\"thanks\">");
-      html.println("<p>Thanks for your flag!</p>");
+      html.println("<p>Thanks for your submission!</p>");
       html.println("<a href=\"front\">Back to the front page...</a> " +
           "(automatically redirect in 3 seconds).");
       html.println("</div>");
@@ -280,7 +391,7 @@ public class BookzServer extends AbstractHandler {
 
         int numBooks = this.model.searchBooks().size();
         String title = "We found " + numBooks + " results!";
-        view.showSearchResults(this.model.searchBooks(book, pageNum),
+        view.showSearchResults(this.model.searchBooks(book, pageNum), model,
             pageNum, this.model.getNumPagesForSearch(), book, title, resp);
 
       }
@@ -295,7 +406,7 @@ public class BookzServer extends AbstractHandler {
   private void redirectPageForNoSearchResults(HttpServletResponse resp) {
     // Respond!
     try (PrintWriter html = resp.getWriter()) {
-      view.printPageStart(html, "NO RESULTS");
+      view.printPageStart(html, "NO RESULTS", "/front");
       // Print actual redirect directive:
       html.println("<meta http-equiv=\"refresh\" content=\"3; url=front \">");
 
@@ -308,6 +419,37 @@ public class BookzServer extends AbstractHandler {
           "(automatically redirect in 3 seconds).");
       html.println("</div>");
       html.println("</div>");
+
+      view.printPageEnd(html);
+
+    } catch (IOException ignored) {
+      // Don't consider a browser that stops listening to us after
+      // submitting a form to be an error.
+    }
+  }
+
+  /**
+   * Redirects user to login page.
+   *
+   * @param resp
+   */
+  private void redirectToLogin(HttpServletRequest req, HttpServletResponse
+      resp) {
+    if (req.getCookies() != null) {
+      for (Cookie cookie : req.getCookies()) {
+        if (cookie.getName().equals("user")) {
+          cookie.setValue("");
+          cookie.setPath("/");
+          cookie.setMaxAge(0);
+          resp.addCookie(cookie);
+        }
+      }
+    }
+
+    try (PrintWriter html = resp.getWriter()) {
+      view.printPageStart(html, "Please Log In", "/login");
+      // Print actual redirect directive:
+      html.println("<meta http-equiv=\"refresh\" content=\"2; url=login \">");
 
       view.printPageEnd(html);
 

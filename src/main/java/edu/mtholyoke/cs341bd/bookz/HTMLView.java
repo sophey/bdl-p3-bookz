@@ -20,8 +20,9 @@ public class HTMLView {
    *
    * @param html  where to write to; get this from the HTTP response.
    * @param title the title of the page, since that goes in the header.
+   * @param url
    */
-  void printPageStart(PrintWriter html, String title) {
+  void printPageStart(PrintWriter html, String title, String url) {
     html.println("<!DOCTYPE html>"); // HTML5
     html.println("<html>");
     html.println("  <head>");
@@ -31,7 +32,7 @@ public class HTMLView {
         getStaticURL("bookz.css") + "\">");
     html.println("  </head>");
     html.println("  <body>");
-    html.println("  <a href='/front'><h1 class=\"logo\">" + title +
+    html.println("  <a href='" + url + "'><h1 class=\"logo\">" + title +
         "</h1></a>");
   }
 
@@ -50,10 +51,14 @@ public class HTMLView {
     html.println("</html>");
   }
 
-  void showFrontPage(Model model, HttpServletResponse resp) throws IOException {
+  void showFrontPage(Model model, HttpServletResponse resp, boolean loggedIn)
+      throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Bookz");
-
+      printPageStart(html, "Bookz", "/front");
+      if (loggedIn)
+        html.println("<div id='right'><a href='/signOut'>Sign Out</a></div>");
+      else
+        html.println("<div id='right'><a href='/login'>Log In</a></div>");
 
       html.println("<div class=\"form\">");
       html.println("	<form action=\"search\" method=\"SEARCH\">");
@@ -82,18 +87,19 @@ public class HTMLView {
       html.println("<h3>Check out these random books</h3>");
       List<GutenbergBook> randomBooks = model.getRandomBooks(5);
       for (GutenbergBook randomBook : randomBooks) {
-        printBookHTML(html, randomBook);
+        printBookHTML(html, randomBook, model);
       }
       html.println("<a href='/flagged'>Review Flags</a>");
       printPageEnd(html);
     }
   }
 
-  public void showBookPage(GutenbergBook book, HttpServletResponse resp)
+  public void showBookPage(Model model, GutenbergBook book,
+                           HttpServletResponse resp)
       throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Bookz");
-      printBookHTML(html, book);
+      printPageStart(html, "Bookz", "/front");
+      printBookHTML(html, book, model);
       printPageEnd(html);
     }
   }
@@ -109,7 +115,7 @@ public class HTMLView {
       String> problems, HttpServletResponse resp)
       throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Flagz");
+      printPageStart(html, "Flagz", "/front");
       for (GutenbergBook book : problems.keySet()) {
         printFlagHTML(html, book, problems.get(book));
       }
@@ -134,11 +140,16 @@ public class HTMLView {
     html.println("</div>");
   }
 
-  private void printBookHTML(PrintWriter html, GutenbergBook book) {
+  private void printBookHTML(PrintWriter html, GutenbergBook book, Model
+      model) {
     html.println("<div class='book'>");
     html.println("<a class='none' href='/book/" + book.id + "'>");
     html.println
-        ("<a class='flag' href='/flag/" + book.getBookNumber() + "'>Flag</a>");
+        ("<div id='right'><a href='/flag/" + book.getBookNumber() + "'>Flag" +
+            "</a><br>");
+    html.println
+        ("<a href='/like/" + book.getBookNumber() + "'>" + model
+            .getLiked(book.id).size() + " Like(s)</a></div>");
     html.println("<div class='title'>" + book.title + "</div>");
     if (book.creator != null) {
       html.println("<div class='creator'>" + book.creator + "</div>");
@@ -170,14 +181,14 @@ public class HTMLView {
     }
   }
 
-  public void showBookCollection(List<GutenbergBook> theBooks, int
+  public void showBookCollection(List<GutenbergBook> theBooks, Model model, int
       currentPage, int numPages, String query, HttpServletResponse resp)
       throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Bookz");
+      printPageStart(html, "Bookz", "/front");
       if (theBooks != null) {
         for (int i = 0; i < Math.min(20, theBooks.size()); i++) {
-          printBookHTML(html, theBooks.get(i));
+          printBookHTML(html, theBooks.get(i), model);
         }
       }
 
@@ -189,12 +200,12 @@ public class HTMLView {
   public void showAuthors(List<Author> authors, int currentPage, int
       numPages, Model model, HttpServletResponse resp) throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Bookz");
+      printPageStart(html, "Bookz", "/front");
       if (authors != null) {
         for (Author author : authors) {
           html.println
               ("<a href='/authorPage/" + author.getPlusString() + "/1'>" +
-              author.toString() + "</a> (" + model.getBooksByAuthor(author)
+                  author.toString() + "</a> (" + model.getBooksByAuthor(author)
                   .size() + ")<br>");
         }
       }
@@ -205,15 +216,15 @@ public class HTMLView {
   }
 
 
-  public void showSearchResults(List<GutenbergBook> theBooks, int
+  public void showSearchResults(List<GutenbergBook> theBooks, Model model, int
       currentPage, int numPages, String query, String title,
                                 HttpServletResponse resp)
       throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, title);
+      printPageStart(html, title, "/front");
       if (theBooks != null) {
         for (int i = 0; i < Math.min(20, theBooks.size()); i++) {
-          printBookHTML(html, theBooks.get(i));
+          printBookHTML(html, theBooks.get(i), model);
         }
       }
 
@@ -222,10 +233,17 @@ public class HTMLView {
     }
   }
 
+  /**
+   * Shows the page to submit a flag.
+   *
+   * @param book
+   * @param resp
+   * @throws IOException
+   */
   public void showFlagPage(GutenbergBook book, HttpServletResponse
       resp) throws IOException {
     try (PrintWriter html = resp.getWriter()) {
-      printPageStart(html, "Bookz");
+      printPageStart(html, "Bookz", "/front");
       if (book != null) {
         html.println("<form action='submitFlag/" + book.getBookNumber() + "' " +
             "method='POST'>");
@@ -239,4 +257,54 @@ public class HTMLView {
       printPageEnd(html);
     }
   }
+
+  /**
+   * Shows the page to submit a like.
+   *
+   * @param book
+   * @param resp
+   * @param model
+   * @throws IOException
+   */
+  public void showLikePage(GutenbergBook book, HttpServletResponse
+      resp, Model model, String user) throws IOException {
+    try (PrintWriter html = resp.getWriter()) {
+      printPageStart(html, "Bookz", "/front");
+      if (book != null) {
+        html.println("<form action='submitLike/" + book.getBookNumber() + "' " +
+            "method='POST'>");
+        html.println("<input type='hidden' name='id' value='etext" + book
+            .getBookNumber() + "'/>");
+        html.println("<input type='hidden' name='user' value='" + user + "'/>");
+        html.println("<input type=\"submit\" value=\"Like!\">");
+        html.println("</form>");
+
+        html.println("<br>Likers:");
+        for (String u : model.getLiked(book.id)) {
+          html.println("<br><a href='/userLikes/" + u + "/1'>" + u +
+              "</a>");
+        }
+      }
+      printPageEnd(html);
+    }
+  }
+
+  /**
+   * Login page
+   *
+   * @param resp
+   * @throws IOException
+   */
+  public void showLoginPage(HttpServletResponse resp) throws IOException {
+    try (PrintWriter html = resp.getWriter()) {
+      printPageStart(html, "Bookz", "/front");
+      html.println("<form action='submitLogin'" + "method='POST'>");
+      html.println("User: ");
+      html.println("<input type=\"text\" name=\"user\"><br>");
+      html.println("<input type=\"submit\" value=\"Log In!\">");
+      html.println("</form>");
+      printPageEnd(html);
+    }
+  }
+
 }

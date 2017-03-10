@@ -12,6 +12,7 @@ public class Model {
   Map<Author, List<GutenbergBook>> booksByAuthor;
 
   Map<GutenbergBook, String> flagged; // id to problem
+  Map<GutenbergBook, List<String>> liked; // id to list of users liked
 
   List<GutenbergBook> booksWithSearch;
   List<Author> authors;
@@ -26,8 +27,9 @@ public class Model {
     // store books starting with different characters in map
     storeBooks();
 
-    // set flagged to empty
+    // set flagged and liked to empty
     flagged = new HashMap<>();
+    liked = new HashMap<>();
   }
 
   public void storeBooks() {
@@ -210,4 +212,31 @@ public class Model {
     return getNumPages(searchBooks());
   }
 
+  public Map<GutenbergBook, List<String>> getLiked() {
+    return liked;
+  }
+
+  public List<String> getLiked(String id) {
+    liked.putIfAbsent(getBook(id), new ArrayList<>());
+    return liked.get(getBook(id));
+  }
+
+  public void addLike(String id, String user) {
+    if(!liked.get(getBook(id)).contains(user))
+      liked.get(getBook(id)).add(user);
+  }
+
+  /**
+   * Returns a list of books liked by a user.
+   * @param user
+   * @return
+   */
+  public List<GutenbergBook> getUserLiked(String user) {
+    List<GutenbergBook> books = new ArrayList<>();
+    for (GutenbergBook book : liked.keySet()) {
+      if (liked.get(book).contains(user))
+        books.add(book);
+    }
+    return books;
+  }
 }

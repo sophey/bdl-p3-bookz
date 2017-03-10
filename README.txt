@@ -16,6 +16,12 @@ At the second level, books by that author are available.
 
 Target 2
 
+(2) I. A minimal system tracks likes globally. Every click increments a counter, which is stored per-book and visible to us.
+(2) J. A satisfactory system tracks likes per-user, but has a user field in every book's form in order to like.
+(8) K. A good system will allow users to log in in one place, tracking their username in cookies. Attempting to "like" something without being logged in will actually send the user to the login form.
+(4) L. A great system can show which users have liked a book.
+(4) M. A great system will also allow a user to visit a "/user/likes" page which shows them what they (or other users) have liked.
+
 (16) Writing Target 
 
 Complete (writing_target.txt)
