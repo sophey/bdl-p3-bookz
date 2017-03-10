@@ -21,6 +21,7 @@ Target 2
 (8) K. A good system will allow users to log in in one place, tracking their username in cookies. Attempting to "like" something without being logged in will actually send the user to the login form.
 (4) L. A great system can show which users have liked a book.
 (4) M. A great system will also allow a user to visit a "/user/likes" page which shows them what they (or other users) have liked.
+(5) P. An excellent system will list recent user activity on the front page. , e.g. User twilight99 just liked "Dracula" -- where both the user and the book are links if possible. ***kind of, just lists recently liked books…
 
 (16) Writing Target 
 

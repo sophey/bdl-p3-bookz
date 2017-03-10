@@ -82,12 +82,20 @@ public class HTMLView {
         html.println("<a href='/author/" + letter + "/1'>" + letter + "</a> ");
       }
       html.println("<br><a href='/authors/1'>List of Authors</a>");
+      html.println("<br><a href='/user/likes/1'>Books Users Like</a>");
 
       // get 5 random books:
       html.println("<h3>Check out these random books</h3>");
       List<GutenbergBook> randomBooks = model.getRandomBooks(5);
       for (GutenbergBook randomBook : randomBooks) {
         printBookHTML(html, randomBook, model);
+      }
+
+      // get 5 recently liked books:
+      html.println("<h3>Check out these recently liked books</h3>");
+      List<GutenbergBook> likedBooks = model.getRecentlyLiked();
+      for (GutenbergBook likedBook : likedBooks) {
+        printBookHTML(html, likedBook, model);
       }
       html.println("<a href='/flagged'>Review Flags</a>");
       printPageEnd(html);

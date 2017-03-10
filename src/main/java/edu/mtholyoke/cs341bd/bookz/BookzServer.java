@@ -195,6 +195,14 @@ public class BookzServer extends AbstractHandler {
         view.showReviewPage(model.getFlagged(), resp);
       }
 
+      String likedBookId = Util.getAfterIfStartsWith("/user/likes/", path);
+      if (likedBookId != null) {
+        int pageNum = Integer.parseInt(likedBookId);
+        List<GutenbergBook> allLiked = model.getAllLikedBooks();
+        view.showBookCollection(allLiked, model, pageNum, model.getNumPages
+            (allLiked), "/user/likes", resp);
+      }
+
       String userLikeId = Util.getAfterIfStartsWith("/userLikes/", path);
       if (userLikeId != null) {
         int indSlash = userLikeId.indexOf("/");

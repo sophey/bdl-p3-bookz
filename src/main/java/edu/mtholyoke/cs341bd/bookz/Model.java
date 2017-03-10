@@ -16,6 +16,7 @@ public class Model {
 
   List<GutenbergBook> booksWithSearch;
   List<Author> authors;
+  List<GutenbergBook> recentlyLiked;
 
   public final int NUM_PER_PAGE = 20;
 
@@ -30,8 +31,12 @@ public class Model {
     // set flagged and liked to empty
     flagged = new HashMap<>();
     liked = new HashMap<>();
+    recentlyLiked = new ArrayList<>();
   }
 
+  /**
+   * Called in the beginning, stores books according to author and title.
+   */
   public void storeBooks() {
     booksStartingWith = new HashMap<>();
     booksAuthorStartingWith = new HashMap<>();
@@ -216,6 +221,15 @@ public class Model {
     return liked;
   }
 
+  public List<GutenbergBook> getAllLikedBooks() {
+    List<GutenbergBook> books = new ArrayList<>();
+    for (GutenbergBook book : liked.keySet()) {
+      if (liked.get(book).size() > 0)
+        books.add(book);
+    }
+    return books;
+  }
+
   public List<String> getLiked(String id) {
     liked.putIfAbsent(getBook(id), new ArrayList<>());
     return liked.get(getBook(id));
@@ -224,6 +238,13 @@ public class Model {
   public void addLike(String id, String user) {
     if(!liked.get(getBook(id)).contains(user))
       liked.get(getBook(id)).add(user);
+    recentlyLiked.add(0, getBook(id));
+    if (recentlyLiked.size() > 5)
+      recentlyLiked.subList(5, recentlyLiked.size()).clear();
+  }
+
+  public List<GutenbergBook> getRecentlyLiked() {
+    return recentlyLiked;
   }
 
   /**
